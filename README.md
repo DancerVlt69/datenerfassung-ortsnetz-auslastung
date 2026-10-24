@@ -9,6 +9,7 @@ Dieses Repository bündelt Integrationen, die lokale Netzspannungsmessungen an d
 - [Tasmota SML-Lesekopf](#tasmota-sml-lesekopf)
 - [Home Assistant](#home-assistant)
 - [ioBroker](#iobroker)
+- [EcoFlow Smart Meter (ioBroker)](#ecoflow-smart-meter-iobroker)
 - [MQTT](#mqtt)
 - [evcc](#evcc)
 - [Victron GX](#victron-gx)
@@ -35,6 +36,7 @@ Dieses Repository bündelt Integrationen, die lokale Netzspannungsmessungen an d
 | [Tasmota SML-Lesekopf](#tasmota-sml-lesekopf) | Optische Smart-Meter-Schnittstelle | ESP32 / Tasmota Script | HTTPS / WebQuery | SML-fähige Stromzähler |
 | [Home Assistant](#home-assistant) | Vorhandene Spannungssensoren | Home Assistant / HACS | HTTPS | Home-Assistant-Installationen |
 | [ioBroker](#iobroker) | Vorhandene Spannungsdatenpunkte | ioBroker JavaScript | HTTPS | ioBroker-Installationen |
+| [EcoFlow Smart Meter (ioBroker)](#ecoflow-smart-meter-iobroker) | EcoFlow Smart Meter über die EcoFlow-Cloud | ioBroker JavaScript | HTTPS | EcoFlow Smart Meter mit ioBroker.ecoflow-mqtt |
 | [MQTT](#mqtt) | MQTT-Topics | Node.js / Docker | HTTPS | Smart-Meter-Gateways mit MQTT und EVCC |
 | [evcc](#evcc) | Shelly Gen2/3 oder Modbus TCP | Python / cron | HTTPS | evcc-Installationen mit direktem Zählerzugriff |
 | [Victron GX](#victron-gx) | VE.Bus oder Netzzähler über D-Bus | Python / Venus OS | HTTPS | Victron GX-Geräte |
@@ -96,6 +98,14 @@ Das Script für den JavaScript-Adapter liest drei konfigurierte Spannungsdatenpu
 - Anleitung: [ioBroker-README](iobroker-ortsnetz-auslastung/README.md)
 
 Das Script verwendet den eingebauten Helfer `httpPost` und benötigt keine zusätzliche npm-Abhängigkeit.
+
+## EcoFlow Smart Meter (ioBroker)
+
+Das Script für den ioBroker-JavaScript-Adapter liest die Phasenspannungen L1–L3 eines EcoFlow Smart Meters aus dem Adapter `ecoflow-mqtt` und sendet zusätzlich Minimum, Maximum und Mittelwert über das 5-Minuten-Intervall. Außerdem wird die Netzleistung am Hausanschluss übertragen (abschaltbar).
+
+- Ordner: [`ecoflow-ortsnetz-auslastung`](ecoflow-ortsnetz-auslastung)
+- Voraussetzungen: `ioBroker.javascript` ab Version 7.9 und [ioBroker.ecoflow-mqtt](https://github.com/foxthefox/ioBroker.ecoflow-mqtt) mit eingerichtetem Smart Meter
+- Anleitung: [EcoFlow-README](ecoflow-ortsnetz-auslastung/README.md)
 
 ## MQTT
 
