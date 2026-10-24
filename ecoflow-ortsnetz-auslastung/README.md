@@ -47,14 +47,15 @@ Die API erwartet `grid_power_w` positiv bei Bezug und negativ bei Einspeisung. `
 
 ## Status-Datenpunkte
 
-Die API-Antwort wird unter `0_userdata.0.ortsnetz` abgelegt (abschaltbar mit `statusPrefix: ''`):
+Die API-Antwort wird unter `0_userdata.0.ortsnetz` abgelegt (abschaltbar mit `statusPrefix: ''`). Jeder Upload-Versuch schreibt alle Datenpunkte neu. Nach einem Fehler oder übersprungenen Upload bleibt also kein alter Erfolgsstatus und keine alte Empfehlung stehen.
 
-| Datenpunkt | Inhalt |
-|---|---|
-| `http_status` | Letzter HTTP-Status, `202` = angenommen |
-| `last_upload` | Zeitpunkt des letzten erfolgreichen Uploads |
-| `overall`, `l1`, `l2`, `l3` | Ampelbewertung `green` / `yellow` / `red` |
-| `storage_recommendation` | `none` / `charge` / `discharge` |
+| Datenpunkt | Erfolg | Fehler oder übersprungener Upload |
+|---|---|---|
+| `http_status` | `202` | HTTP-Status der API (z. B. `422`), `null` bei Timeout, Verbindungsfehler oder übersprungenem Upload |
+| `last_error` | leer | Grund des Fehlers |
+| `overall`, `l1`, `l2`, `l3` | `green` / `yellow` / `red` | `null` |
+| `storage_recommendation` | `none` / `charge` / `discharge` | `null` |
+| `last_upload` | Zeitpunkt dieses Uploads | unverändert: Zeitpunkt des letzten erfolgreichen Uploads |
 
 ## Verhalten und Fehleranalyse
 

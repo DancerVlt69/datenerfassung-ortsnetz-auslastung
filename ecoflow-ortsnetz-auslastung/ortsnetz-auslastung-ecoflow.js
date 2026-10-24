@@ -1,6 +1,6 @@
 /*
  * Ortsnetz-Auslastung for EcoFlow Smart Meter (ioBroker JavaScript adapter)
- * Version: 0.1.0
+ * Version: 0.1.1
  *
  * Reads the phase voltages of an EcoFlow Smart Meter from the ioBroker
  * adapter ecoflow-mqtt and uploads them every five minutes.
@@ -10,7 +10,8 @@
  *   - staleness check: no upload when the EcoFlow cloud stops delivering
  *   - optional grid power at the house connection (grid_power_w)
  *   - static fields (model, kWp) once per script start
- *   - API response (traffic light, storage recommendation) as data points
+ *   - API response (traffic light, storage recommendation) as data points;
+ *     every attempt rewrites them, so errors never leave an old result visible
  *
  * Requires: ioBroker.javascript >= 7.9.0 (httpPost),
  *           ioBroker.ecoflow-mqtt with the Smart Meter configured.
@@ -46,7 +47,7 @@ const CONFIG = {
 };
 
 const API_URL = 'https://www.ortsnetz-auslastung.de/v1/measurements';
-const VERSION = 'iobroker-ecoflow-0.1.0';
+const VERSION = 'iobroker-ecoflow-0.1.1';
 const LOG_PREFIX = 'Ortsnetz-Auslastung:';
 
 const IDS = {
@@ -92,7 +93,8 @@ async function initStatusStates() {
         l2: { type: 'string', role: 'text', name: 'Ampel L2' },
         l3: { type: 'string', role: 'text', name: 'Ampel L3' },
         storage_recommendation: { type: 'string', role: 'text', name: 'Speicherladeempfehlung' },
-        http_status: { type: 'number', role: 'value', name: 'Letzter HTTP-Status' },
+        http_status: { type: 'number', role: 'value', name: 'HTTP-Status des letzten Versuchs (null = keine Antwort)' },
+        last_error: { type: 'string', role: 'text', name: 'Fehler des letzten Versuchs (leer = OK)' },
         last_upload: { type: 'number', role: 'date', name: 'Letzter erfolgreicher Upload' },
     };
     for (const [key, common] of Object.entries(defs)) {
@@ -100,25 +102,42 @@ async function initStatusStates() {
     }
 }
 
-function writeStatus(statusCode, body) {
+const RESULT_KEYS = ['overall', 'l1', 'l2', 'l3', 'storage_recommendation'];
+
+function setStatus(key, value) {
+    setState(`${CONFIG.statusPrefix}.${key}`, value, true);
+}
+
+// Failed or skipped attempt: log, record the reason and clear the result,
+// so no previous traffic light or recommendation stays visible
+function reportFailure(reason, httpStatus = null) {
+    log(`${LOG_PREFIX} ${reason}`, 'warn');
     if (!CONFIG.statusPrefix) {
         return;
     }
-    setState(`${CONFIG.statusPrefix}.http_status`, statusCode, true);
-    if (statusCode !== 202 || !body) {
+    setStatus('http_status', httpStatus);
+    setStatus('last_error', reason);
+    for (const key of RESULT_KEYS) {
+        setStatus(key, null);
+    }
+}
+
+// Accepted upload: write every result field, missing fields become null
+function reportSuccess(body) {
+    if (!CONFIG.statusPrefix) {
         return;
     }
-    setState(`${CONFIG.statusPrefix}.last_upload`, Date.now(), true);
-    if (body.status) {
-        for (const key of ['overall', 'l1', 'l2', 'l3']) {
-            if (body.status[key] !== undefined) {
-                setState(`${CONFIG.statusPrefix}.${key}`, String(body.status[key]), true);
-            }
-        }
+    const status = (body && body.status) || {};
+    setStatus('http_status', 202);
+    setStatus('last_error', '');
+    setStatus('last_upload', Date.now());
+    for (const key of ['overall', 'l1', 'l2', 'l3']) {
+        setStatus(key, status[key] !== undefined ? String(status[key]) : null);
     }
-    if (body.storage_recommendation !== undefined) {
-        setState(`${CONFIG.statusPrefix}.storage_recommendation`, String(body.storage_recommendation), true);
-    }
+    setStatus(
+        'storage_recommendation',
+        body && body.storage_recommendation !== undefined ? String(body.storage_recommendation) : null,
+    );
 }
 
 // Collect every voltage update for min/max/avg
@@ -136,11 +155,11 @@ async function uploadMeasurement() {
     samples = { l1: [], l2: [], l3: [] };
 
     if (!Number.isFinite(CONFIG.latitude) || !Number.isFinite(CONFIG.longitude)) {
-        log(`${LOG_PREFIX} latitude/longitude nicht konfiguriert; Upload übersprungen`, 'warn');
+        reportFailure('latitude/longitude nicht konfiguriert; Upload übersprungen');
         return;
     }
     if (CONFIG.meterBase.includes('SERIENNUMMER')) {
-        log(`${LOG_PREFIX} Seriennummer in meterBase nicht eingetragen; Upload übersprungen`, 'warn');
+        reportFailure('Seriennummer in meterBase nicht eingetragen; Upload übersprungen');
         return;
     }
 
@@ -149,7 +168,7 @@ async function uploadMeasurement() {
         for (const p of PHASES) {
             const { value, ageSec } = await readState(IDS[p]);
             if (ageSec > CONFIG.maxAgeSeconds) {
-                log(`${LOG_PREFIX} ${p.toUpperCase()} veraltet (${Math.round(ageSec)} s); Upload übersprungen`, 'warn');
+                reportFailure(`${p.toUpperCase()} veraltet (${Math.round(ageSec)} s); Upload übersprungen`);
                 return;
             }
             current[p] = value;
@@ -157,7 +176,7 @@ async function uploadMeasurement() {
 
         // Do not report missing or implausible measurements
         if (!PHASES.every((p) => isValidVoltage(current[p]))) {
-            log(`${LOG_PREFIX} ungültige Spannung (${PHASES.map((p) => current[p]).join(' / ')}); Upload übersprungen`, 'warn');
+            reportFailure(`ungültige Spannung (${PHASES.map((p) => current[p]).join(' / ')}); Upload übersprungen`);
             return;
         }
 
@@ -203,7 +222,8 @@ async function uploadMeasurement() {
 
         httpPost(API_URL, payload, { timeout: 10000, headers: { 'Content-Type': 'application/json' } }, (error, response) => {
             if (error) {
-                log(`${LOG_PREFIX} Upload fehlgeschlagen: ${error}`, 'warn');
+                // Timeout, DNS or connection error: no HTTP status available
+                reportFailure(`Upload fehlgeschlagen: ${error}`);
                 return;
             }
 
@@ -214,19 +234,18 @@ async function uploadMeasurement() {
                 // Response without JSON body; the status code is sufficient
             }
 
-            writeStatus(response.statusCode, body);
-
             if (response.statusCode === 202) {
                 staticSent = true;
+                reportSuccess(body);
                 if (CONFIG.debug) {
                     log(`${LOG_PREFIX} OK: ${JSON.stringify(body)}`, 'info');
                 }
             } else {
-                log(`${LOG_PREFIX} unerwarteter HTTP-Status ${response.statusCode}: ${JSON.stringify(body)}`, 'warn');
+                reportFailure(`unerwarteter HTTP-Status ${response.statusCode}: ${JSON.stringify(body)}`, response.statusCode);
             }
         });
     } catch (error) {
-        log(`${LOG_PREFIX} Datenpunkt nicht lesbar: ${error}`, 'warn');
+        reportFailure(`Datenpunkt nicht lesbar: ${error}`);
     }
 }
 
