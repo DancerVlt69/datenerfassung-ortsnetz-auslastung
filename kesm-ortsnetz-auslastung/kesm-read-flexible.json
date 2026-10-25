@@ -327,11 +327,11 @@
         "showLogs": true
     },
     {
-        "id": "fdc7f552700abaad",
+        "id": "7bac0f28fd63134c",
         "type": "global-config",
         "env": [],
         "modules": {
-            "node-red-contrib-modbus": "5.62.0"
+            "node-red-contrib-modbus": "5.62.1"
         }
     }
 ]
