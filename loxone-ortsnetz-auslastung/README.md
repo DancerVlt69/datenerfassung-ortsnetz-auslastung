@@ -52,7 +52,9 @@ Im Konfigurationsblock des Scripts oder per Environment-Variablen (diese haben V
 | `NAME_LEISTUNGSFAKTOR` | Nein | Leistungsfaktor (als Betrag übertragen) |
 | `NAME_NETZLEISTUNG`, `NETZLEISTUNG_FAKTOR` | Nein | Netzleistung am Hausanschluss; der Faktor rechnet auf W mit Bezug positiv um (`1000` für kW, `-1000` für kW mit Einspeisung positiv) |
 | `NAME_SOC` | Nein | Ladezustand des Speichers in % |
-| `PLANT_CAPACITY_KWP` | Nein | Installierte PV-Leistung in kWp |
+| `NAME_PV_PROGNOSE` | Nein | Heutige PV-Gesamtprognose in kWh (z. B. ein Virtueller Eingang, den ein Prognosedienst befüllt); braucht `PLANT_CAPACITY_KWP`, ein Wert über 10 kWh je kWp wird nicht übertragen |
+| `PLANT_CAPACITY_KWP` | Nein | Installierte PV-Leistung in kWp; Pflicht mit `NAME_PV_PROGNOSE` |
+| `BATTERY_CAPACITY_KWH` | Nein | Nutzbare Kapazität des Batteriespeichers in kWh |
 | `SMARTMETER_MODEL` | Nein | Bezeichnung von Messgerät und Messort |
 | `ABTAST_S`, `INTERVALL_S` | Nein | Abtastung (Standard 10 s) und Sendeintervall (Standard 300 s) |
 

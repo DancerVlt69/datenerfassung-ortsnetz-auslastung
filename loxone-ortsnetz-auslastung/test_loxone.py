@@ -25,6 +25,7 @@ WERTE = {
     "Power factor": ("200", "-0.647"),
     "grid_power": ("200", "-1.25"),
     "[ESS]Battery SOC": ("200", "55,1 %"),
+    "VC_today": ("200", "35.8 kWh"),
     "Ohne Rechte": ("403", ""),
 }
 BENUTZER, PASSWORT = "ortsnetz", "geheim"
@@ -79,6 +80,7 @@ class MitServer(unittest.TestCase):
             "LATITUDE": 52.52, "LONGITUDE": 13.4, "NAME_L1": "L1 voltage", "NAME_L2": "L2 voltage",
             "NAME_L3": "L3 voltage", "NAME_FREQUENZ": "", "NAME_STROM_L1": "", "NAME_LEISTUNGSFAKTOR": "",
             "NAME_NETZLEISTUNG": "", "NAME_SOC": "", "NETZLEISTUNG_FAKTOR": 1.0, "PLANT_CAPACITY_KWP": None,
+            "NAME_PV_PROGNOSE": "", "BATTERY_CAPACITY_KWH": None,
             "API_URL": f"http://{self.host}/v1/measurements",
         }
         for name, wert in werte.items():
@@ -120,7 +122,7 @@ class PayloadTests(MitServer):
         payload = MODULE.payload_erstellen([MODULE.probe_nehmen()])
         self.assertEqual((payload["l1_v"], payload["l2_v"], payload["l3_v"]), (237.68, 237.07, 236.92))
         for feld in ("grid_frequency_hz", "l1_a", "power_factor", "grid_power_w", "battery_soc_percent",
-                     "plant_capacity_kwp", "l1_v_min"):
+                     "plant_capacity_kwp", "pv_forecast_kwh", "battery_capacity", "l1_v_min"):
             self.assertNotIn(feld, payload)
         self.assertRegex(payload["observed_at"], r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
         self.assertEqual(payload["integration_version"], "loxone-0.1.0")
@@ -143,6 +145,27 @@ class PayloadTests(MitServer):
         self.assertEqual(payload["power_factor"], 0.647, "Betrag")
         self.assertEqual(payload["grid_power_w"], -1250, "kW -> W, Einspeisung negativ")
         self.assertEqual(payload["battery_soc_percent"], 55.1)
+
+    def test_pv_prognose_mit_anlagengroesse_und_speicherkapazitaet(self):
+        with patch.object(MODULE, "NAME_PV_PROGNOSE", "VC_today"), \
+                patch.object(MODULE, "PLANT_CAPACITY_KWP", 22.61), \
+                patch.object(MODULE, "BATTERY_CAPACITY_KWH", 16.12):
+            payload = MODULE.payload_erstellen([MODULE.probe_nehmen()])
+        self.assertEqual(payload["pv_forecast_kwh"], 35.8)
+        self.assertEqual(payload["plant_capacity_kwp"], 22.61, "die Anlagengröße geht mit, sonst 422")
+        self.assertEqual(payload["battery_capacity"], 16.12)
+        self.assertNotIn("pv_forecast_kwh_min", MODULE.payload_erstellen(
+            [dict(zeit=datetime(2026, 10, 27, tzinfo=timezone.utc), l1_v=237.0, l2_v=-1, l3_v=-1,
+                  pv_forecast_kwh=35.8)], kennzahlen=True), "eine Tagesprognose bekommt keine Kennzahlen")
+
+    def test_pv_prognose_ueber_10_kwh_je_kwp_fehlt_nur(self):
+        # die API lehnt sonst die GANZE Messung mit 422 ab
+        with patch.object(MODULE, "NAME_PV_PROGNOSE", "VC_today"), \
+                patch.object(MODULE, "PLANT_CAPACITY_KWP", 3.0), patch.object(MODULE, "log") as log:
+            payload = MODULE.payload_erstellen([MODULE.probe_nehmen()])
+        self.assertNotIn("pv_forecast_kwh", payload)
+        self.assertEqual(payload["l1_v"], 237.68)
+        self.assertTrue(any("VC_today" in str(a.args[0]) for a in log.call_args_list))
 
     def test_ein_fehlender_optionaler_wert_fehlt_nur(self):
         with patch.object(MODULE, "NAME_FREQUENZ", "Ohne Rechte"), patch.object(MODULE, "log"):
@@ -199,15 +222,18 @@ class DauerbetriebTests(MitServer):
 class EinstellungTests(unittest.TestCase):
     def test_environment_hat_vorrang(self):
         umgebung = {"LOXONE_HOST": "ms.local", "LATITUDE": "48.1", "LONGITUDE": "11.5", "NAME_L1": "L1 voltage",
-                    "LOXONE_PASSWORD": "pw", "INTERVALL_S": "300", "NETZLEISTUNG_FAKTOR": "1000"}
+                    "LOXONE_PASSWORD": "pw", "INTERVALL_S": "300", "NETZLEISTUNG_FAKTOR": "1000",
+                    "NAME_PV_PROGNOSE": "VC_today", "BATTERY_CAPACITY_KWH": "16.12"}
         with patch.dict("os.environ", umgebung), patch.object(MODULE, "LOXONE_HOST", ""), \
                 patch.object(MODULE, "LATITUDE", None), patch.object(MODULE, "LONGITUDE", None), \
                 patch.object(MODULE, "NAME_L1", ""), patch.object(MODULE, "LOXONE_PASSWORD", ""), \
-                patch.object(MODULE, "NETZLEISTUNG_FAKTOR", 1.0):
+                patch.object(MODULE, "NETZLEISTUNG_FAKTOR", 1.0), patch.object(MODULE, "NAME_PV_PROGNOSE", ""), \
+                patch.object(MODULE, "BATTERY_CAPACITY_KWH", None):
             MODULE.konfiguration_laden()
             self.assertEqual((MODULE.LOXONE_HOST, MODULE.LATITUDE, MODULE.LONGITUDE, MODULE.NAME_L1),
                              ("ms.local", 48.1, 11.5, "L1 voltage"))
             self.assertEqual((MODULE.LOXONE_PASSWORD, MODULE.NETZLEISTUNG_FAKTOR), ("pw", 1000.0))
+            self.assertEqual((MODULE.NAME_PV_PROGNOSE, MODULE.BATTERY_CAPACITY_KWH), ("VC_today", 16.12))
 
     def test_ungueltige_environment_variable(self):
         with patch.dict("os.environ", {"LATITUDE": "abc"}):
@@ -216,9 +242,11 @@ class EinstellungTests(unittest.TestCase):
 
     def test_pflichtwerte(self):
         gut = {"LOXONE_HOST": "x", "NAME_L1": "L1", "NAME_L2": "", "NAME_L3": "", "LATITUDE": 52.5,
-               "LONGITUDE": 13.4, "PLANT_CAPACITY_KWP": None, "ABTAST_S": 10.0, "INTERVALL_S": 300}
+               "LONGITUDE": 13.4, "PLANT_CAPACITY_KWP": None, "ABTAST_S": 10.0, "INTERVALL_S": 300,
+               "NAME_PV_PROGNOSE": "", "BATTERY_CAPACITY_KWH": None}
         for kaputt in ({"LOXONE_HOST": ""}, {"NAME_L1": ""}, {"NAME_L2": "L2"}, {"LATITUDE": None},
-                       {"LONGITUDE": 200.0}, {"PLANT_CAPACITY_KWP": 0}, {"ABTAST_S": 400.0}):
+                       {"LONGITUDE": 200.0}, {"PLANT_CAPACITY_KWP": 0}, {"ABTAST_S": 400.0},
+                       {"NAME_PV_PROGNOSE": "VC_today"}, {"BATTERY_CAPACITY_KWH": 0}):
             werte = dict(gut, **kaputt)
             with self.subTest(kaputt=kaputt):
                 patcher = [patch.object(MODULE, k, v) for k, v in werte.items()]

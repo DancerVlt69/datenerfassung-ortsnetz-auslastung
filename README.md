@@ -245,7 +245,7 @@ Installation, Konfiguration, cron-Eintrag und systemd-Timer stehen in der [smart
 
 ## Loxone Miniserver
 
-Das Python-Script liest Spannungen (optional Frequenz, Phasenströme, Leistungsfaktor, Netzleistung und Speicher-SOC) aus beliebigen Bausteinen eines Loxone Miniservers über dessen Webservice (`/jdev/sps/io/<Bezeichnung>`). Im Dauerbetrieb liest es alle 10 Sekunden und sendet alle fünf Minuten die Messung mit Minimum, Maximum und Mittelwert über das Intervall; `--once` sendet eine einzelne Messung (cron).
+Das Python-Script liest Spannungen (optional Frequenz, Phasenströme, Leistungsfaktor, Netzleistung, Speicher-SOC und die heutige PV-Prognose) aus beliebigen Bausteinen eines Loxone Miniservers über dessen Webservice (`/jdev/sps/io/<Bezeichnung>`). Im Dauerbetrieb liest es alle 10 Sekunden und sendet alle fünf Minuten die Messung mit Minimum, Maximum und Mittelwert über das Intervall; `--once` sendet eine einzelne Messung (cron).
 
 - Ordner: [`loxone-ortsnetz-auslastung`](loxone-ortsnetz-auslastung)
 - Script: [`ortsnetz_loxone.py`](loxone-ortsnetz-auslastung/ortsnetz_loxone.py)

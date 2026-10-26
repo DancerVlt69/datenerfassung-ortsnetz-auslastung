@@ -2,9 +2,9 @@
 """
 ortsnetz_loxone.py
 
-Liest Netzspannungen (und optional Frequenz, Ströme, Leistungsfaktor, Netzleistung und
-Speicher-SOC) aus einem Loxone Miniserver über dessen Webservice (GET /jdev/sps/io/<Name>)
-und sendet sie an https://www.ortsnetz-auslastung.de
+Liest Netzspannungen (und optional Frequenz, Ströme, Leistungsfaktor, Netzleistung,
+Speicher-SOC und die heutige PV-Prognose) aus einem Loxone Miniserver über dessen Webservice
+(GET /jdev/sps/io/<Name>) und sendet sie an https://www.ortsnetz-auslastung.de
 
 Welche Bausteine gelesen werden, steht in der Konfiguration (Bezeichnung des Bausteins in
 Loxone Config, z. B. "L1 voltage" eines Virtuellen Eingangs). Der Loxone-Benutzer braucht
@@ -48,8 +48,11 @@ LOXONE_PASSWORD = ""
 LATITUDE = None		# z. B. 52.52
 LONGITUDE = None	# z. B. 13.40
 
-# Optional: installierte PV-Leistung in kWp, größer 0 und maximal 1000 (None = wird nicht übertragen)
+# Optional: installierte PV-Leistung in kWp, größer 0 und maximal 1000 (None = wird nicht übertragen);
+# muss gesetzt sein, wenn NAME_PV_PROGNOSE gesetzt ist
 PLANT_CAPACITY_KWP = None
+# Optional: nutzbare Kapazität des Batteriespeichers in kWh, größer 0 (None = wird nicht übertragen)
+BATTERY_CAPACITY_KWH = None
 
 # Bezeichnungen der Bausteine in Loxone Config. L1 muss gesetzt werden; L2 und L3 leer = einphasig (-1)
 NAME_L1 = ""		# Spannung L1 in V, z. B. "L1 voltage"
@@ -63,6 +66,7 @@ NAME_STROM_L3 = ""
 NAME_LEISTUNGSFAKTOR = ""	# Leistungsfaktor (Betrag wird übertragen)
 NAME_NETZLEISTUNG = ""		# Netzleistung am Hausanschluss (alle Phasen)
 NAME_SOC = ""			# Ladezustand des Speichers in %
+NAME_PV_PROGNOSE = ""		# heutige PV-Gesamtprognose in kWh (braucht PLANT_CAPACITY_KWP)
 
 # Umrechnung der Netzleistung auf W mit Bezug positiv / Einspeisung negativ:
 # 1 = Wert ist bereits W mit Bezug positiv, 1000 = kW mit Bezug positiv,
@@ -163,6 +167,9 @@ def optionale_werte():
 		("power_factor", NAME_LEISTUNGSFAKTOR, lambda w: round(abs(w), 3), lambda w: 0 <= w <= 1),
 		("grid_power_w", NAME_NETZLEISTUNG, lambda w: round(w * NETZLEISTUNG_FAKTOR), lambda w: True),
 		("battery_soc_percent", NAME_SOC, lambda w: round(w, 1), lambda w: 0 <= w <= 100),
+		# mehr als 10 kWh je kWp und Tag lehnt die API mit 422 für die ganze Messung ab
+		("pv_forecast_kwh", NAME_PV_PROGNOSE, lambda w: round(w, 1),
+			lambda w: 0 <= w <= min(100000, 10 * (PLANT_CAPACITY_KWP or 0))),
 	)
 	return [eintrag for eintrag in alle if eintrag[1]]
 
@@ -213,6 +220,8 @@ def payload_erstellen(proben, kennzahlen=False):
 			payload[f"{feld}_avg"] = round(sum(werte) / len(werte), 3)
 	if PLANT_CAPACITY_KWP is not None:
 		payload["plant_capacity_kwp"] = PLANT_CAPACITY_KWP
+	if BATTERY_CAPACITY_KWH is not None:
+		payload["battery_capacity"] = BATTERY_CAPACITY_KWH
 	payload["smartmeter_model"] = SMARTMETER_MODEL
 	payload["integration_version"] = INTEGRATION_VERSION
 	return payload
@@ -289,8 +298,8 @@ def einstellung(name, standard, umwandeln=str):
 
 TEXTE = ("LOXONE_HOST", "LOXONE_USER", "NAME_L1", "NAME_L2", "NAME_L3", "NAME_FREQUENZ",
 	"NAME_STROM_L1", "NAME_STROM_L2", "NAME_STROM_L3", "NAME_LEISTUNGSFAKTOR", "NAME_NETZLEISTUNG",
-	"NAME_SOC", "SMARTMETER_MODEL")
-ZAHLEN = ("LATITUDE", "LONGITUDE", "PLANT_CAPACITY_KWP", "NETZLEISTUNG_FAKTOR", "ABTAST_S")
+	"NAME_SOC", "NAME_PV_PROGNOSE", "SMARTMETER_MODEL")
+ZAHLEN = ("LATITUDE", "LONGITUDE", "PLANT_CAPACITY_KWP", "BATTERY_CAPACITY_KWH", "NETZLEISTUNG_FAKTOR", "ABTAST_S")
 
 
 def konfiguration_laden():
@@ -317,6 +326,10 @@ def konfiguration_pruefen():
 		raise SystemExit("FEHLER: LATITUDE muss zwischen -90 und 90, LONGITUDE zwischen -180 und 180 liegen.")
 	if PLANT_CAPACITY_KWP is not None and (zahl(PLANT_CAPACITY_KWP) is None or not 0 < PLANT_CAPACITY_KWP <= 1000):
 		raise SystemExit("FEHLER: PLANT_CAPACITY_KWP muss größer 0 und maximal 1000 sein.")
+	if NAME_PV_PROGNOSE and PLANT_CAPACITY_KWP is None:
+		raise SystemExit("FEHLER: NAME_PV_PROGNOSE braucht PLANT_CAPACITY_KWP (sonst lehnt die API die Messung mit 422 ab).")
+	if BATTERY_CAPACITY_KWH is not None and (zahl(BATTERY_CAPACITY_KWH) is None or not BATTERY_CAPACITY_KWH > 0):
+		raise SystemExit("FEHLER: BATTERY_CAPACITY_KWH muss größer 0 sein.")
 	if not 1 <= ABTAST_S <= INTERVALL_S:
 		raise SystemExit("FEHLER: ABTAST_S muss zwischen 1 und INTERVALL_S liegen.")
 
