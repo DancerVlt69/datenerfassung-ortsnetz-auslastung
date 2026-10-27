@@ -1,13 +1,13 @@
-// Shelly PlugS Gen3 script für Ortsnetz-Auslastung angepasst aus
+// Shelly PlusPlugS/PlugS Gen2+ script für Ortsnetz-Auslastung angepasst aus
 
 // Shelly Pro 3EM / Pro 3EM-400 script for Ortsnetz-Auslastung.
 // https://www.ortsnetz-auslastung.de/
 // Set the four values in CONFIG before enabling the script.
 // Datei: PostData_ShellyPro3EM_ortsnetz-auslastung_V011_200926.txt
 // Autor: Thomas Lehmann / Juergen Gensicke
-// Anpassung für Shelly PlugS Gen3: DancerVLT69
+// Anpassung für Shelly PlusPlugS/PlugS Gen2+: DancerVLT69
 // https://github.com/thomaslehmann1234/datenerfassung-ortsnetz-auslastung
-// VERSION = "0.0.1" vom 27.10.26
+// VERSION = "0.0.2" vom 27.10.26
 // IP: 192.168.x.y
 
 // for Debug:
@@ -17,11 +17,11 @@ let CONFIG = {
   apiUrl: "https://www.ortsnetz-auslastung.de/v1/measurements",
   latitude: 0, // hier eigene Latitude eintragen
   longitude: 0, // hier eigene Longitude eintragen
-  smartmeterModel: "Shelly PlugS Gen3",
+  smartmeterModel: "Shelly PlugS",
   intervalMs: 300000
 };
 
-let VERSION = "0.0.1";
+let VERSION = "0.0.2";
 
 function validVoltage(value) {
   return typeof value === "number" && value >= 150 && value <= 300;
