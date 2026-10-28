@@ -88,25 +88,25 @@ Ein ungültiger Wert, zum Beispiel `LATITUDE=abc`, führt zum Abbruch mit einer 
 /opt/ortsnetz-goodwe/ortsnetz_goodwe.py --dry-run
 ```
 
-Mit `--dry-run` werden die Werte abgerufen, geprüft und als Payload ausgegeben, aber nicht gesendet. Beispiel von einem GW10KN-ET mit Batterie:
+Mit `--dry-run` werden die Werte abgerufen, geprüft und als Payload ausgegeben, aber nicht gesendet. Beispiel von einem GW10KN-ET mit Batterie bei rund 400 W Netzbezug, `grid_power_w` ist daher positiv:
 
 ```json
 {
-	"observed_at": "2026-10-27T16:10:04Z",
+	"observed_at": "2026-10-28T06:00:50Z",
 	"latitude": 52.52,
 	"longitude": 13.4,
-	"l1_v": 229.7,
-	"l2_v": 229.3,
-	"l3_v": 231.2,
+	"l1_v": 228.9,
+	"l2_v": 229.8,
+	"l3_v": 230.2,
 	"integration_version": "goodwe-0.1.0",
-	"grid_frequency_hz": 49.95,
-	"grid_power_w": -15.0,
-	"apparent_power_va": 3115.0,
-	"power_factor": 0.005,
-	"l1_a": 2.9,
-	"l2_a": 6.6,
-	"l3_a": 3.9,
-	"battery_soc_percent": 82.0,
+	"grid_frequency_hz": 50.01,
+	"grid_power_w": 393.0,
+	"apparent_power_va": 825.0,
+	"power_factor": 0.476,
+	"l1_a": 1.8,
+	"l2_a": 0.9,
+	"l3_a": 0.8,
+	"battery_soc_percent": 10.0,
 	"smartmeter_model": "GoodWe Smart Meter"
 }
 ```
@@ -161,7 +161,7 @@ Nicht übertragen werden insbesondere:
 Bei erfolgreicher Übertragung erscheint eine Zeile mit den Messwerten und der Antwort der API:
 
 ```
-2026-10-27 17:10:05 Übertragen (2026-10-27T16:10:04Z): L1=229.7 L2=229.3 L3=231.2 f=49.95 P=-15.0 | HTTP 202: {"accepted":true,...}
+2026-10-28 07:00:51 Übertragen (2026-10-28T06:00:50Z): L1=228.9 L2=229.8 L3=230.2 f=50.01 P=393.0 | HTTP 202: {"accepted":true,...}
 ```
 
 Bei Fehlern endet das Script mit Exit-Code 1 und einer Meldung, die mit `FEHLER:` beginnt:
