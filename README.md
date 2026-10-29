@@ -24,6 +24,7 @@ Dieses Repository bündelt Integrationen, die lokale Netzspannungsmessungen an d
 - [USV mit NUT](#usv-mit-nut)
 - [WeeWX](#weewx)
 - [smartWB Wallbox](#smartwb-wallbox)
+- [Loxone Miniserver](#loxone-miniserver)
 - [Gemeinsame Eigenschaften](#gemeinsame-eigenschaften)
 - [API](#api)
 - [Koordinaten](#koordinaten)
@@ -51,6 +52,7 @@ Dieses Repository bündelt Integrationen, die lokale Netzspannungsmessungen an d
 | [USV mit NUT](#usv-mit-nut) | USV-Eingangsspannung über NUT | Shell / cron | HTTPS | NUT-kompatible einphasige USVs |
 | [WeeWX](#weewx) | Vorhandene Sensoren | Python / systemd | HTTPS | WeeWX mit Zusatzmodul
 | [smartWB Wallbox](#smartwb-wallbox) | HTTP-API der Wallbox (Spannungen L1–L3) | Python / cron / systemd-Timer | HTTPS | smartWB / EVSE-WiFi 2.0 mit Stromzähler |
+| [Loxone Miniserver](#loxone-miniserver) | Vorhandene Bausteine über den Webservice (`/jdev/sps/io`) | Python / systemd / cron | HTTPS | Loxone-Installationen mit Spannungswerten, z. B. aus Modbus-Zählern oder Wechselrichtern |
 
 ## Shelly Pro 3EM und Pro EM50
 
@@ -240,6 +242,16 @@ Das Python-Script liest die Phasenspannungen einer smartWB / EVSE-WiFi 2.0 Wallb
 - Voraussetzungen: smartWB / EVSE-WiFi 2.0 mit konfiguriertem Stromzähler, im Heimnetz erreichbar (IP bekannt) und mit aktivierter API, Linux mit Python ab 3.8, cron oder systemd und Internetzugang
 
 Installation, Konfiguration, cron-Eintrag und systemd-Timer stehen in der [smartWB-README](smartwb-ortsnetz-auslastung/README.md).
+
+## Loxone Miniserver
+
+Das Python-Script liest Spannungen (optional Frequenz, Phasenströme, Leistungsfaktor, Netzleistung, Speicher-SOC und die heutige PV-Prognose) aus beliebigen Bausteinen eines Loxone Miniservers über dessen Webservice (`/jdev/sps/io/<Bezeichnung>`). Im Dauerbetrieb liest es alle 10 Sekunden und sendet alle fünf Minuten die Messung mit Minimum, Maximum und Mittelwert über das Intervall; `--once` sendet eine einzelne Messung (cron).
+
+- Ordner: [`loxone-ortsnetz-auslastung`](loxone-ortsnetz-auslastung)
+- Script: [`ortsnetz_loxone.py`](loxone-ortsnetz-auslastung/ortsnetz_loxone.py)
+- Voraussetzungen: Loxone Miniserver im Heimnetz, ein Loxone-Benutzer mit Leserechten auf die gelesenen Bausteine, Linux mit Python ab 3.8, systemd oder cron und Internetzugang
+
+Installation, Konfiguration und systemd-Dienst stehen in der [Loxone-README](loxone-ortsnetz-auslastung/README.md).
 
 ## Gemeinsame Eigenschaften
 
