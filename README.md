@@ -20,6 +20,7 @@ Dieses Repository bündelt Integrationen, die lokale Netzspannungsmessungen an d
 - [openHAB](#openhab)
 - [Symcon](#symcon)
 - [Fronius](#fronius)
+- [GoodWe](#goodwe)
 - [Siemens PAC Energiemessgeräte](#siemens-pac-energiemessgerate)
 - [USV mit NUT](#usv-mit-nut)
 - [WeeWX](#weewx)
@@ -48,6 +49,7 @@ Dieses Repository bündelt Integrationen, die lokale Netzspannungsmessungen an d
 | [openHAB](#openhab) | Vorhandene Smart-Meter-Items | openHAB 4+ / JavaScript | HTTPS | openHAB-Installationen |
 | [Symcon](#symcon) | Vorhandene Spannungsvariablen | Symcon-Modul (PHP) | HTTPS | Symcon-Installationen |
 | [Fronius](#fronius) | Fronius Smart Meter über die Solar API | Python / cron | HTTPS | Fronius-Wechselrichter mit Smart Meter |
+| [GoodWe](#goodwe) | GoodWe Smart Meter über Modbus TCP | Python / cron | HTTPS | GoodWe-Hybridwechselrichter (ET-Plattform) mit Smart Meter |
 | [Siemens PAC Energiemessgeräte](#siemens-pac-energiemessgerate) | REST-API des Messgeräts | Node.js / Docker | HTTPS | Siemens PAC 4200/4220 und ähnliche Energiemessgeräte |
 | [USV mit NUT](#usv-mit-nut) | USV-Eingangsspannung über NUT | Shell / cron | HTTPS | NUT-kompatible einphasige USVs |
 | [WeeWX](#weewx) | Vorhandene Sensoren | Python / systemd | HTTPS | WeeWX mit Zusatzmodul
@@ -205,6 +207,16 @@ Das Python-Script liest die Phasenspannungen und die Netzfrequenz des Fronius Sm
 - Voraussetzungen: Fronius-Wechselrichter mit Fronius Smart Meter am Netzeinspeisepunkt, aktivierte Solar API, Linux mit Python ab 3.8, cron und Internetzugang
 
 Aktivierung der Solar API, Konfiguration und cron-Eintrag stehen in der [Fronius-README](fronius-ortsnetz-auslastung/README.md).
+
+## GoodWe
+
+Das Python-Script liest die Phasenspannungen, Ströme, die Netzfrequenz und die Netzleistung des GoodWe Smart Meters am Netzanschlusspunkt über die Modbus-TCP-Schnittstelle des Wechselrichters und wird alle fünf Minuten per cron ausgeführt. Der Zugriff erfolgt ausschließlich lesend. Ist eine Batterie vorhanden, wird zusätzlich der Ladezustand übertragen, optional die installierte PV-Leistung und die Batteriekapazität.
+
+- Ordner: [`goodwe-ortsnetz-auslastung`](goodwe-ortsnetz-auslastung)
+- Script: [`ortsnetz_goodwe.py`](goodwe-ortsnetz-auslastung/ortsnetz_goodwe.py)
+- Voraussetzungen: GoodWe-Hybridwechselrichter der ET-Plattform (z. B. GW10KN-ET, EH, BT, BH) mit Smart Meter am Netzanschlusspunkt, erreichbares Modbus TCP (Port 502), Linux mit Python ab 3.8, cron und Internetzugang
+
+Registerbelegung, Konfiguration und cron-Eintrag stehen in der [GoodWe-README](goodwe-ortsnetz-auslastung/README.md).
 
 ## Siemens PAC Energiemessgeräte
 
